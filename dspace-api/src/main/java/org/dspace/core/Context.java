@@ -351,8 +351,6 @@ public class Context
         if(!isValid())
             log.info("complete() was called on a closed Context object. No changes to commit.");
 
-        // FIXME: Might be good not to do a commit() if nothing has actually
-        // been written using this connection
         try
         {
             // As long as we have a valid, writeable database connection,
@@ -366,8 +364,10 @@ public class Context
         {
             if(dbConnection != null)
             {
-                //Commit our changes
-                dbConnection.commit();
+                //Commit our changes if necessary
+                if (!isReadOnly()) {
+                    dbConnection.commit();
+                }
                 // Free the DB connection
                 dbConnection.closeDBConnection();
                 dbConnection = null;
