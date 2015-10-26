@@ -384,9 +384,13 @@ public class ItemImportCLITool {
                 }
 
                 // complete all transactions
-                c.complete();
+                if (c.isValid()) {
+                    c.complete();
+                }
             } catch (Exception e) {
-                c.abort();
+                if (c.isValid()) {
+                    c.abort();
+                }
                 e.printStackTrace();
                 System.out.println(e);
                 status = 1;

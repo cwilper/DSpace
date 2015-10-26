@@ -48,6 +48,7 @@ import org.dspace.content.service.*;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
+import org.dspace.core.ContextSupplier;
 import org.dspace.core.Email;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
@@ -318,6 +319,8 @@ public class ItemImportServiceImpl implements ItemImportService, InitializingBea
 
             Arrays.sort(dircontents, ComparatorUtils.naturalComparator());
 
+            ContextSupplier supplier = ContextSupplier.from(c);
+
         for (int i = 0; i < dircontents.length; i++)
         {
             if (skipItems.containsKey(dircontents[i]))
@@ -326,29 +329,38 @@ public class ItemImportServiceImpl implements ItemImportService, InitializingBea
             }
             else
             {
-                List<Collection> clist;
-                if (directoryFileCollections) {
-                    String path = sourceDir + File.separatorChar + dircontents[i];
-                    try {
-                        List<Collection> cols = processCollectionFile(c, path, "collections");
-                        if (cols == null) {
-                            System.out.println("No collections specified for item " + dircontents[i] + ". Skipping.");
+                Context context = supplier.get();
+                boolean failed = false;
+                try {
+                    List<Collection> clist;
+                    if (directoryFileCollections) {
+                        String path = sourceDir + File.separatorChar + dircontents[i];
+                        try {
+                            List<Collection> cols = processCollectionFile(context, path, "collections");
+                            if (cols == null) {
+                                System.out.println("No collections specified for item " + dircontents[i] + ". Skipping.");
+                                continue;
+                            }
+                            clist = cols;
+                        } catch (IllegalArgumentException e) {
+                            System.out.println(e.getMessage() + " Skipping.");
                             continue;
                         }
-                        clist = cols;
+                    } else {
+                        clist = mycollections;
                     }
-                    catch (IllegalArgumentException e)
-                    {
-                        System.out.println(e.getMessage() + " Skipping." );
-                        continue;
+                    addItem(context, mycollections, sourceDir, dircontents[i], mapOut, template);
+                    System.out.println(i + " " + dircontents[i]);
+                } catch (Exception e) {
+                    failed = true;
+                    throw e;
+                } finally {
+                    if (failed) {
+                        context.abort();
+                    } else {
+                        ContextSupplier.complete(context);
                     }
                 }
-                else
-                {
-                    clist = mycollections;
-                }
-                addItem(c, mycollections, sourceDir, dircontents[i], mapOut, template);
-                System.out.println(i + " " + dircontents[i]);
             }
         }
 
