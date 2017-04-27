@@ -20,6 +20,7 @@
 <%@page import="org.dspace.content.service.CommunityService"%>
 <%@page import="org.dspace.content.factory.ContentServiceFactory"%>
 <%@page import="org.dspace.content.service.ItemService"%>
+<%@page import="org.dspace.core.Context"%>
 <%@page import="org.dspace.core.Utils"%>
 <%@page import="org.dspace.content.Bitstream"%>
 <%@ page contentType="text/html;charset=UTF-8" %>
@@ -63,8 +64,8 @@
         String allFormats = StringUtils.join(formats, ",");
         feedData = "ALL:" + allFormats;
     }
-    
-    ItemCounter ic = new ItemCounter(UIUtil.obtainContext(request));
+    Context context = UIUtil.obtainContext(request);
+    ItemCounter ic = new ItemCounter(context);
 
     RecentSubmissions submissions = (RecentSubmissions) request.getAttribute("recent.submissions");
     ItemService itemService = ContentServiceFactory.getInstance().getItemService();
@@ -226,4 +227,7 @@ if (communities != null && communities.size() != 0)
 </div>
 	
 </div>
+<%
+context.complete();
+%>
 </dspace:layout>
