@@ -8,6 +8,7 @@
 package org.dspace.app.rest;
 
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
+import static org.dspace.app.rest.matcher.MetadataMatcher.matchMetadata;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -17,7 +18,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Arrays;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,9 +25,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dspace.app.rest.builder.CollectionBuilder;
 import org.dspace.app.rest.builder.CommunityBuilder;
 import org.dspace.app.rest.matcher.CommunityMatcher;
-import org.dspace.app.rest.matcher.CommunityMetadataMatcher;
 import org.dspace.app.rest.model.CommunityRest;
-import org.dspace.app.rest.model.MetadataEntryRest;
+import org.dspace.app.rest.model.MetadataRest;
+import org.dspace.app.rest.model.MetadataValueRest;
 import org.dspace.app.rest.test.AbstractControllerIntegrationTest;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
@@ -45,31 +45,29 @@ public class CommunityRestRepositoryIT extends AbstractControllerIntegrationTest
         // We send a name but the created community should set this to the title
         comm.setName("Test Top-Level Community");
 
-        MetadataEntryRest description = new MetadataEntryRest();
-        description.setKey("dc.description");
+        MetadataRest metadataRest = new MetadataRest();
+
+        MetadataValueRest description = new MetadataValueRest();
         description.setValue("<p>Some cool HTML code here</p>");
+        metadataRest.put("dc.description", description);
 
-        MetadataEntryRest abs = new MetadataEntryRest();
-        abs.setKey("dc.description.abstract");
+        MetadataValueRest abs = new MetadataValueRest();
         abs.setValue("Sample top-level community created via the REST API");
+        metadataRest.put("dc.description.abstract", abs);
 
-        MetadataEntryRest contents = new MetadataEntryRest();
-        contents.setKey("dc.description.tableofcontents");
+        MetadataValueRest contents = new MetadataValueRest();
         contents.setValue("<p>HTML News</p>");
+        metadataRest.put("dc.description.tableofcontents", contents);
 
-        MetadataEntryRest copyright = new MetadataEntryRest();
-        copyright.setKey("dc.rights");
+        MetadataValueRest copyright = new MetadataValueRest();
         copyright.setValue("Custom Copyright Text");
+        metadataRest.put("dc.rights", copyright);
 
-        MetadataEntryRest title = new MetadataEntryRest();
-        title.setKey("dc.title");
+        MetadataValueRest title = new MetadataValueRest();
         title.setValue("Title Text");
+        metadataRest.put("dc.title", title);
 
-        comm.setMetadata(Arrays.asList(description,
-                                       abs,
-                                       contents,
-                                       copyright,
-                                       title));
+        comm.setMetadata(metadataRest);
 
         String authToken = getAuthToken(admin.getEmail(), password);
         getClient(authToken).perform(post("/api/core/communities")
@@ -87,19 +85,14 @@ public class CommunityRestRepositoryIT extends AbstractControllerIntegrationTest
                                hasJsonPath("$._links.logo.href", not(empty())),
                                hasJsonPath("$._links.subcommunities.href", not(empty())),
                                hasJsonPath("$._links.self.href", not(empty())),
-                               hasJsonPath("$.metadata", Matchers.containsInAnyOrder(
-                                   CommunityMetadataMatcher.matchMetadata("dc.description",
-                                           "<p>Some cool HTML code here</p>"),
-                                   CommunityMetadataMatcher.matchMetadata("dc.description.abstract",
-                                           "Sample top-level community created via the REST API"),
-                                   CommunityMetadataMatcher.matchMetadata("dc.description.tableofcontents",
-                                           "<p>HTML News</p>"),
-                                   CommunityMetadataMatcher.matchMetadata("dc.rights",
-                                           "Custom Copyright Text"),
-                                   CommunityMetadataMatcher.matchMetadata("dc.title",
-                                           "Title Text")
+                               hasJsonPath("$.metadata", Matchers.allOf(
+                                       matchMetadata("dc.description", "<p>Some cool HTML code here</p>"),
+                                       matchMetadata("dc.description.abstract",
+                                               "Sample top-level community created via the REST API"),
+                                       matchMetadata("dc.description.tableofcontents", "<p>HTML News</p>"),
+                                       matchMetadata("dc.rights", "Custom Copyright Text"),
+                                       matchMetadata("dc.title", "Title Text")
                                )))));
-
     }
 
     @Test
@@ -110,11 +103,13 @@ public class CommunityRestRepositoryIT extends AbstractControllerIntegrationTest
         CommunityRest comm = new CommunityRest();
         comm.setName("Test Top-Level Community");
 
-        MetadataEntryRest title = new MetadataEntryRest();
-        title.setKey("dc.title");
-        title.setValue("Title Text");
+        MetadataRest metadataRest = new MetadataRest();
 
-        comm.setMetadata(Arrays.asList(title));
+        MetadataValueRest title = new MetadataValueRest();
+        title.setValue("Title Text");
+        metadataRest.put("dc.title", title);
+
+        comm.setMetadata(metadataRest);
 
         // Anonymous user tries to create a community.
         // Should fail because user is not authenticated. Error 401.

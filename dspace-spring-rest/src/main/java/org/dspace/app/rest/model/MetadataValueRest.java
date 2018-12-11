@@ -7,8 +7,7 @@
  */
 package org.dspace.app.rest.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonProperty.Access;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * An embeddable representation of the Metadata to use in with DSpace REST
@@ -26,7 +25,7 @@ public class MetadataValueRest {
 
     int confidence;
 
-    @JsonProperty(access = Access.READ_ONLY)
+    @JsonIgnore
     int place;
 
     public String getValue() {

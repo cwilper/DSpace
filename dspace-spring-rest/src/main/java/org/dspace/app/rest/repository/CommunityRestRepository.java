@@ -22,7 +22,6 @@ import org.dspace.app.rest.SearchRestMethod;
 import org.dspace.app.rest.converter.CommunityConverter;
 import org.dspace.app.rest.exception.UnprocessableEntityException;
 import org.dspace.app.rest.model.CommunityRest;
-import org.dspace.app.rest.model.MetadataEntryRest;
 import org.dspace.app.rest.model.hateoas.CommunityResource;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Community;
@@ -73,13 +72,7 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
         try {
             community = cs.create(null, context);
             cs.update(context, community);
-            if (communityRest.getMetadata() != null) {
-                for (MetadataEntryRest mer : communityRest.getMetadata()) {
-                    String[] metadatakey = mer.getKey().split("\\.");
-                    cs.addMetadata(context, community, metadatakey[0], metadatakey[1],
-                            metadatakey.length == 3 ? metadatakey[2] : null, mer.getLanguage(), mer.getValue());
-                }
-            }
+            updateMetadata(cs, community, communityRest.getMetadata());
         } catch (SQLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }

@@ -11,6 +11,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -19,11 +21,17 @@ import org.dspace.app.rest.exception.PatchBadRequestException;
 import org.dspace.app.rest.exception.RESTAuthorizationException;
 import org.dspace.app.rest.exception.RepositoryMethodNotImplementedException;
 import org.dspace.app.rest.exception.UnprocessableEntityException;
+import org.dspace.app.rest.model.MetadataRest;
+import org.dspace.app.rest.model.MetadataValueRest;
 import org.dspace.app.rest.model.RestAddressableModel;
 import org.dspace.app.rest.model.hateoas.DSpaceResource;
 import org.dspace.app.rest.model.patch.Patch;
 import org.dspace.app.util.DCInputsReaderException;
 import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.DSpaceObject;
+import org.dspace.content.MetadataField;
+import org.dspace.content.service.DSpaceObjectService;
+import org.dspace.content.service.MetadataFieldService;
 import org.dspace.core.Context;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -52,6 +60,9 @@ public abstract class DSpaceRestRepository<T extends RestAddressableModel, ID ex
     // https://docs.spring.io/spring/docs/4.3.18.RELEASE/spring-framework-reference/htmlsingle/#aop-understanding-aop-proxies
     @Autowired
     private DSpaceRestRepository<T, ID> thisRepository;
+
+    @Autowired
+    private MetadataFieldService metadataFieldService;
 
     @Override
     public <S extends T> S save(S entity) {
@@ -407,4 +418,28 @@ public abstract class DSpaceRestRepository<T extends RestAddressableModel, ID ex
         throw new RepositoryMethodNotImplementedException("No implementation found; Method not allowed!", "");
     }
 
+    protected void updateMetadata(DSpaceObjectService dsoService,
+                                  DSpaceObject dso,
+                                  MetadataRest metadataRest) throws AuthorizeException, SQLException {
+        Context context = obtainContext();
+
+        dsoService.removeMetadataValues(context, dso, dso.getMetadata());
+        dsoService.update(context, dso);
+
+        for (Map.Entry<String, List<MetadataValueRest>> entry : metadataRest.getMap().entrySet()) {
+            String[] seq = entry.getKey().split("\\.");
+            MetadataField metadataField = metadataFieldService.findByElement(
+                    context, seq[0], seq[1], seq.length > 2 ? seq[2] : null);
+            if (metadataField == null) {
+                throw new IllegalArgumentException("No such metadata field in registry: " + entry.getKey());
+            }
+            for (MetadataValueRest metadataValueRest : entry.getValue()) {
+                dsoService.addMetadata(context, dso, metadataField, metadataValueRest.getLanguage(),
+                        metadataValueRest.getValue(), metadataValueRest.getAuthority(),
+                        metadataValueRest.getConfidence());
+            }
+        }
+
+        dsoService.update(context, dso);
+    }
 }
