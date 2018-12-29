@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 
@@ -23,6 +22,8 @@ import org.dspace.app.rest.converter.CommunityConverter;
 import org.dspace.app.rest.exception.UnprocessableEntityException;
 import org.dspace.app.rest.model.CommunityRest;
 import org.dspace.app.rest.model.hateoas.CommunityResource;
+import org.dspace.app.rest.model.patch.Patch;
+import org.dspace.app.rest.repository.patch.DSpaceObjectPatch;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Community;
 import org.dspace.content.service.CommunityService;
@@ -42,16 +43,15 @@ import org.springframework.stereotype.Component;
  */
 
 @Component(CommunityRest.CATEGORY + "." + CommunityRest.NAME)
-public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest, UUID> {
+public class CommunityRestRepository extends DSpaceObjectRestRepository<Community, CommunityRest> {
+
+    private final CommunityService cs;
 
     @Autowired
-    CommunityService cs;
-
-    @Autowired
-    CommunityConverter converter;
-
-    public CommunityRestRepository() {
-        System.out.println("Repository initialized by Spring");
+    public CommunityRestRepository(CommunityService dsoService,
+                                   CommunityConverter dsoConverter) {
+        super(dsoService, dsoConverter, new DSpaceObjectPatch<CommunityRest>() {});
+        this.cs = dsoService;
     }
 
     @Override
@@ -77,7 +77,7 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
             throw new RuntimeException(e.getMessage(), e);
         }
 
-        return converter.convert(community);
+        return dsoConverter.convert(community);
     }
 
     @Override
@@ -92,7 +92,7 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
         if (community == null) {
             return null;
         }
-        return converter.fromModel(community);
+        return dsoConverter.fromModel(community);
     }
 
     @Override
@@ -109,7 +109,7 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
         } catch (SQLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
-        Page<CommunityRest> page = new PageImpl<Community>(communities, pageable, total).map(converter);
+        Page<CommunityRest> page = new PageImpl<Community>(communities, pageable, total).map(dsoConverter);
         return page;
     }
 
@@ -123,7 +123,7 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
         } catch (SQLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
-        Page<CommunityRest> page = utils.getPage(topCommunities, pageable).map(converter);
+        Page<CommunityRest> page = utils.getPage(topCommunities, pageable).map(dsoConverter);
         return page;
     }
 
@@ -144,8 +144,15 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
         } catch (SQLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
-        Page<CommunityRest> page = utils.getPage(subCommunities, pageable).map(converter);
+        Page<CommunityRest> page = utils.getPage(subCommunities, pageable).map(dsoConverter);
         return page;
+    }
+
+    @Override
+    @PreAuthorize("hasPermission(#id, 'COMMUNITY', 'WRITE')")
+    protected void patch(Context context, HttpServletRequest request, String apiCategory, String model, UUID id,
+                         Patch patch) throws AuthorizeException, SQLException {
+        patchDSpaceObject(apiCategory, model, id, patch);
     }
 
     @Override
@@ -157,5 +164,4 @@ public class CommunityRestRepository extends DSpaceRestRepository<CommunityRest,
     public CommunityResource wrapResource(CommunityRest community, String... rels) {
         return new CommunityResource(community, utils, rels);
     }
-
 }

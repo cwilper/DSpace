@@ -28,4 +28,9 @@ public class MetadataRest {
     public void put(String key, MetadataValueRest... values) {
         map.put(key, Arrays.asList(values));
     }
+
+    @Override
+    public boolean equals(Object object) {
+        return object instanceof MetadataRest && ((MetadataRest) object).getMap().equals(map);
+    }
 }

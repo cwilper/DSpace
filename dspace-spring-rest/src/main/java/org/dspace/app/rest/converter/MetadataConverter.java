@@ -7,6 +7,7 @@
  */
 package org.dspace.app.rest.converter;
 
+import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -17,9 +18,13 @@ import java.util.stream.Collectors;
 
 import org.dspace.app.rest.model.MetadataRest;
 import org.dspace.app.rest.model.MetadataValueRest;
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.Item;
 import org.dspace.content.MetadataValue;
+import org.dspace.content.factory.ContentServiceFactory;
 import org.dspace.content.service.DSpaceObjectService;
+import org.dspace.core.Context;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
@@ -27,12 +32,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class MetadataConverter implements Converter<List<MetadataValue>, MetadataRest> {
 
-    private final MetadataValueConverter valueConverter;
+    @Autowired
+    private ContentServiceFactory contentServiceFactory;
 
     @Autowired
-    public MetadataConverter(MetadataValueConverter valueConverter) {
-        this.valueConverter = valueConverter;
-    }
+    private MetadataValueConverter valueConverter;
 
     @Override
     public MetadataRest convert(List<MetadataValue> metadataValueList) {
@@ -59,9 +63,20 @@ public class MetadataConverter implements Converter<List<MetadataValue>, Metadat
         return metadataRest;
     }
 
-    public void setMetadata(DSpaceObjectService dsoService, DSpaceObject dso, MetadataRest metadataRest) {
-        for (Map.Entry<String, List<MetadataValueRest>> entry : metadataRest.getMap().entrySet()) {
-
+    public void setMetadata(Context context, DSpaceObject dso, MetadataRest metadataRest)
+            throws SQLException, AuthorizeException {
+        DSpaceObjectService dsoService = contentServiceFactory.getDSpaceObjectService(dso);
+        dsoService.clearMetadata(context, dso, Item.ANY, Item.ANY, Item.ANY, Item.ANY);
+        for (Map.Entry<String, List<MetadataValueRest>> entry: metadataRest.getMap().entrySet()) {
+            String[] seq = entry.getKey().split("\\.");
+            String schema = seq[0];
+            String element = seq[1];
+            String qualifier = seq.length == 3 ? seq[2] : null;
+            for (MetadataValueRest mvr: entry.getValue()) {
+                dsoService.addMetadata(context, dso, schema, element, qualifier, mvr.getLanguage(),
+                        mvr.getValue(), mvr.getAuthority(), mvr.getConfidence());
+            }
         }
+        dsoService.update(context, dso);
     }
 }
